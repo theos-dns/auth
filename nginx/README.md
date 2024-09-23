@@ -1,3 +1,17 @@
+# theos dns auth nginx
+will block all incoming request on defined ports except IPs that are allowed in `/var/nginx/allowed-ips.conf`.
+Allowed ips file will be updated by `api` app
+
+forward all incoming requests (which was checked that are authorized by `/var/nginx/allowed-ips.conf`) to defined server on incoming port
+
+Also on port `81` it will return the ip address of client
+
+## image ENVs
+`FORWARD_TO` hostname or ip which requests should be forwarded
+
+`PORTS` ports listen to, seperated by ',' like: 80,443,1080 also can be range like 8080-8090, or combination of both
+
+
 ## usage of `nginx-forward-generator`
 
 ```
