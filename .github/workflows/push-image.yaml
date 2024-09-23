@@ -1,0 +1,29 @@
+name: Deploy Images to GHCR
+
+on:
+  release:
+    types: [ created ]
+
+jobs:
+  auth-nginx-image:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: './nginx'
+    steps:
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@main
+
+      - name: 'Login to GitHub Container Registry'
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.CR_PAT}}
+
+      - name: 'Build Inventory Image'
+        run: |
+          docker build . --tag ghcr.io/theos-dns/auth-nginx:${{ github.ref_name }}
+          docker push ghcr.io/theos-dns/auth-nginx:${{ github.ref_name }}
+          docker tag ghcr.io/theos-dns/auth-nginx:${{ github.ref_name }} ghcr.io/theos-dns/auth-nginx:latest
+          docker push ghcr.io/theos-dns/auth-nginx:latest
