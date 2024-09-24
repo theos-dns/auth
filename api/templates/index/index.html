@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html style="height: 100%" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DNS proxy</title>
+</head>
+<body style="display: grid; place-items: center; width: 100%;height: 100%">
+<div style="display: flex; flex-direction: column">
+    <label>
+        <input id="token" style="flex-shrink: 0">
+    </label>
+    <button id="submit" style="margin-top: 10px">kiss me with ur cursor 🫦</button>
+</div>
+</body>
+<script>
+
+    const sb = document.getElementById('submit')
+
+    sb.addEventListener('click', () => {
+        const token = document.getElementById('token').value
+        if(token.length < 8){
+            return;
+        }
+        sb.disabled = true;
+        fetch('http://ident.me/').then(response => {
+            if (response.status === 200) {
+                response.text().then(ip=>{
+                    window.location.href = `/tap-in?token=${token}&ip=${ip}`
+                })
+            } else {
+                alert('cant find ur ip');
+            }
+        }).finally(()=>{
+            sb.disabled = false
+        });
+    });
+</script>
+</html>

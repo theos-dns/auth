@@ -8,7 +8,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o nginx-forward-gen
 
 
 FROM nginx:1.27-alpine
-LABEL org.opencontainers.image.source="https://github.com/theos-dns/auth"
+LABEL org.opencontainers.image.source="https://github.com/theos-dns/auth/tree/master/nginx"
 
 WORKDIR /root/app
 

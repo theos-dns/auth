@@ -15,8 +15,8 @@ import (
 var (
 	ForwardTo          = flag.String("to", "", "host address where authorized requests froward to (port will not be changed!)")
 	Port               = flag.String("port", "443,80", "port listen to, seperated by ',' like: 80,443,1080 also can be range like 8080-8090, or combination of both")
-	AllowedIPsFilePath = flag.String("allowed-ips-file", "/var/nginx/allowed-ips.conf", "host listen to")
-	NginxConfFilePath  = flag.String("nginx-conf-file", "/etc/nginx/nginx.conf", "host listen to")
+	AllowedIPsFilePath = flag.String("allowed-ips-file", "/var/nginx/allowed-ips.conf", "nginx allowed ips file path")
+	NginxConfFilePath  = flag.String("nginx-conf-file", "/etc/nginx/nginx.conf", "nginx config file path ")
 	help               = flag.Bool("help", false, "Display help message")
 )
 
