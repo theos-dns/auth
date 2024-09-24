@@ -3,7 +3,7 @@ services:
   theos-auth:
     image: ghcr.io/theos-dns/auth:latest
     network_mode: host
-    entrypoint:
+    environment:
       - FORWARD_TO=forward-proxy-as-example
       - PORTS=80,443,1025-9000
       - DB_PATH=/root/app/auth/db/database.sqlite3
