@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@main
 
       - name: 'Login to GitHub Container Registry'
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{github.actor}}
@@ -38,7 +38,7 @@ jobs:
           uses: actions/checkout@main
 
         - name: 'Login to GitHub Container Registry'
-          uses: docker/login-action@v1
+          uses: docker/login-action@v3
           with:
             registry: ghcr.io
             username: ${{github.actor}}
@@ -50,4 +50,25 @@ jobs:
             docker push ghcr.io/theos-dns/auth-api:${{ github.ref_name }}
             docker tag ghcr.io/theos-dns/auth-api:${{ github.ref_name }} ghcr.io/theos-dns/auth-api:latest
             docker push ghcr.io/theos-dns/auth-api:latest
+            
+  auth-image:
+      runs-on: ubuntu-latest
+      needs: [auth-nginx-image, auth-api-image]
+      steps:
+        - name: 'Checkout GitHub Action'
+          uses: actions/checkout@main
+
+        - name: 'Login to GitHub Container Registry'
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{github.actor}}
+            password: ${{secrets.CR_PAT}}
+
+        - name: 'Build Inventory Image'
+          run: |
+            docker build . --tag ghcr.io/theos-dns/auth:${{ github.ref_name }}
+            docker push ghcr.io/theos-dns/auth:${{ github.ref_name }}
+            docker tag ghcr.io/theos-dns/auth:${{ github.ref_name }} ghcr.io/theos-dns/auth:latest
+            docker push ghcr.io/theos-dns/auth:latest
             

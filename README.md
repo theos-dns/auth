@@ -11,3 +11,6 @@
 ## image Volumes
 `/root/app/auth/db/` witch is de default location on sqlLite db file
 `/var/nginx/allowed-ips.conf` witch saves allowed ips
+
+## image
+`docker pull ghcr.io/theos-dns/auth:latest`

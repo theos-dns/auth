@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  theos-auth:
+    image: ghcr.io/theos-dns/auth:latest
+    network_mode: host
+    entrypoint:
+      - FORWARD_TO=forward-proxy-as-example
+      - PORTS=80,443,1025-9000
+      - DB_PATH=/root/app/auth/db/database.sqlite3
+    volumes:
+      - ./t/db:/root/app/auth/db
+      - ./t/allowed-ips.conf:/var/nginx/allowed-ips.conf
