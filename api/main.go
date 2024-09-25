@@ -2,15 +2,18 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"flag"
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 	"io/ioutil"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -20,6 +23,7 @@ var (
 	AllowedIPsFilePath = flag.String("allowed-ips-file", "/var/nginx/allowed-ips.conf", "nginx allowed ips file path")
 	Port               = flag.String("port", "82", "web server port running on")
 	Host               = flag.String("host", "0.0.0.0", "web server host running on")
+	UpstreamServer     = flag.String("upstream", "", "upstream server witch should get new authorized ip. seperated by ','")
 	help               = flag.Bool("help", false, "Display help message")
 )
 
@@ -54,6 +58,10 @@ func main() {
 		fatalErrLog(logger, "-allowed-ips-file path is not set!!", nil)
 	}
 
+	upstreams := slices.DeleteFunc(strings.Split(*UpstreamServer, ","), func(e string) bool {
+		return e == ""
+	})
+
 	server := gin.Default()
 
 	db, err := sql.Open("sqlite3", *DBPath)
@@ -84,6 +92,7 @@ func main() {
 		stmt, err := db.Prepare("select last_ip from users where token = ?")
 		if err != nil {
 			logger.Error("error in validating token", "Details", err)
+			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
@@ -100,9 +109,20 @@ func main() {
 			return
 		}
 
+		// call upstreams
+		for _, upstream := range upstreams {
+			err = callUpstream(upstream, ip, token, "", logger)
+			if err != nil {
+				logger.Error("couldn't call upstream!", "Upstream", upstream, "Details", err)
+				//c.String(http.StatusInternalServerError, "server logs")
+				//return
+			}
+		}
+
 		input, err := ioutil.ReadFile(*AllowedIPsFilePath)
 		if err != nil {
 			logger.Error("couldn't read allowed ips file!", "Details", err)
+			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
@@ -120,6 +140,7 @@ func main() {
 		stmtUpdateLogin, err := db.Prepare("UPDATE users SET last_ip = ?, updated_at = ? WHERE token = ?")
 		if err != nil {
 			logger.Error("couldn't update last login!", "Details", err)
+			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
@@ -127,6 +148,7 @@ func main() {
 		_, err = stmtUpdateLogin.Exec(ip, currentTime.Format("2006-01-02 15:04:05"), token)
 		if err != nil {
 			logger.Error("couldn't update last login!", "Details", err)
+			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
@@ -135,6 +157,7 @@ func main() {
 		err = ioutil.WriteFile(*AllowedIPsFilePath, []byte(output), 0644)
 		if err != nil {
 			logger.Error("couldn't save allowed ips file!", "Details", err)
+			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
@@ -145,6 +168,7 @@ func main() {
 
 		if err != nil {
 			logger.Error("couldn't reload nginx!", "Details", err)
+			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
@@ -175,4 +199,30 @@ func fatalErrLog(logger *slog.Logger, msg string, err error) {
 		logger.Error(msg)
 	}
 	os.Exit(1)
+}
+
+func callUpstream(upstream string, ip string, token string, adminToken string, logger *slog.Logger) error {
+	base := url.URL{}
+
+	base.Host = upstream
+	base.Scheme = "http"
+	base.Path += "/tap-in"
+
+	params := url.Values{}
+	params.Add("ip", ip)
+	params.Add("token", token)
+	params.Add("adminToken", adminToken)
+	base.RawQuery = params.Encode()
+
+	client := http.Client{
+		Timeout: 3 * time.Second,
+	}
+	res, err := client.Get(base.String())
+	if err != nil {
+		return errors.New("error making http request: " + err.Error())
+	}
+
+	logger.Debug("upstream %s: status code: %d\n", upstream, res.StatusCode)
+
+	return nil
 }

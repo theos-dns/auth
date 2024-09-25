@@ -7,6 +7,8 @@
 
 `DB_PATH` sqlLite database file path witch should be saved
 
+`UPSTREAM` upstream server witch should get new authorized ip. seperated by ','
+
 
 ## image Volumes
 `/root/app/auth/db/` witch is de default location on sqlLite db file
@@ -14,3 +16,12 @@
 
 ## image
 `docker pull ghcr.io/theos-dns/auth:latest`
+
+
+## todo:
+- [ ] register user
+- - [ ] api
+- - [ ] interface
+- [x] call upstreams
+- [ ] register user in upstream
+- [ ] replace previous allowed ips
