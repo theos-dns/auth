@@ -1,3 +1,5 @@
 .idea
 .env
 t/
+
+*/**/theos_dns_auth_api
