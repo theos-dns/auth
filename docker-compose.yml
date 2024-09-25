@@ -1,12 +1,17 @@
 version: "3.9"
 services:
   theos-auth:
+    container_name: theos-auth
     image: ghcr.io/theos-dns/auth:latest
     network_mode: host
     environment:
-      - FORWARD_TO=forward-proxy-as-example
-      - PORTS=80,443,1025-9000
+      - FORWARD_TO=forward-proxy
+      - PORTS=443,8020-8030
       - DB_PATH=/root/app/auth/db/database.sqlite3
+      - UPSTREAM=
     volumes:
-      - ./t/db:/root/app/auth/db
-      - ./t/allowed-ips.conf:/var/nginx/allowed-ips.conf
+      - ${PWD}/database-auth.sqlite3:/root/app/auth/db/database.sqlite3
+      - allowedIps:/var/nginx
+
+volumes:
+  allowedIps:
