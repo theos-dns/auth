@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   theos-auth:
     container_name: theos-auth
