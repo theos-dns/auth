@@ -5,7 +5,7 @@ LABEL org.opencontainers.image.source="https://github.com/theos-dns/auth"
 
 WORKDIR /root/app
 
-COPY --from=ghcr.io/theos-dns/auth-api:$VERSION_TO_GET --chmod=777 /root/auth ./auth
+COPY --from=ghcr.io/theos-dns/auth-api:${VERSION_TO_GET} --chmod=777 /root/auth ./auth
 
 ENV allowedIpsFile='/var/nginx/allowed-ips.conf'
 ENV nginxConfFile='/etc/nginx/nginx.conf'
