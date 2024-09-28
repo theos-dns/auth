@@ -67,7 +67,7 @@ jobs:
 
         - name: 'Build Inventory Image'
           run: |
-            docker build . --tag ghcr.io/theos-dns/auth:${{ github.ref_name }}
+            docker build . --build-arg VERSION_TO_GET=${{ github.ref_name }} --tag ghcr.io/theos-dns/auth:${{ github.ref_name }}
             docker push ghcr.io/theos-dns/auth:${{ github.ref_name }}
             docker tag ghcr.io/theos-dns/auth:${{ github.ref_name }} ghcr.io/theos-dns/auth:latest
             docker push ghcr.io/theos-dns/auth:latest
