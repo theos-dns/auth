@@ -8,6 +8,7 @@ services:
       - FORWARD_TO=forward-proxy
       - PORTS=443,8020-8030
       - DB_PATH=/root/app/auth/db/database.sqlite3
+      - PROTECT=dns-server:53@53,coap:85@5688
       - UPSTREAM=
     volumes:
       - ${PWD}/database-auth.sqlite3:/root/app/auth/db/database.sqlite3

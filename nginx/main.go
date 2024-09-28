@@ -17,6 +17,7 @@ var (
 	Port               = flag.String("port", "443,80", "port listen to, seperated by ',' like: 80,443,1080 also can be range like 8080-8090, or combination of both")
 	AllowedIPsFilePath = flag.String("allowed-ips-file", "/var/nginx/allowed-ips.conf", "nginx allowed ips file path")
 	NginxConfFilePath  = flag.String("nginx-conf-file", "/etc/nginx/nginx.conf", "nginx config file path ")
+	ServicesToProtect  = flag.String("protect", "dns-server:53@53,coap:85@5688", "other services that should be protected. Seperated by ','. Structure: {SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}")
 	help               = flag.Bool("help", false, "Display help message")
 )
 
@@ -49,6 +50,10 @@ func main() {
 		return e == ""
 	})
 
+	servicesToProtect := slices.DeleteFunc(strings.Split(*ServicesToProtect, ","), func(e string) bool {
+		return e == ""
+	})
+
 	p, err := parser.NewParser(*NginxConfFilePath)
 	if err != nil {
 		slog.Error("nginx parser failed!", "Details", err)
@@ -72,17 +77,42 @@ func main() {
 			start := pRange[0]
 			end := pRange[1]
 
-			appendServerBlock(conf, *AllowedIPsFilePath, start+"-"+end, *ForwardTo)
+			appendServerBlock(conf, *AllowedIPsFilePath, start+"-"+end, *ForwardTo, "")
 
 		} else {
 			if !isNumber(port) {
 				slog.Error("defined port in not correct, please check your input!", "Your input", port)
 				os.Exit(1)
 			}
-			appendServerBlock(conf, *AllowedIPsFilePath, port, *ForwardTo)
+			appendServerBlock(conf, *AllowedIPsFilePath, port, *ForwardTo, "")
 
 		}
 
+	}
+
+	for _, service := range servicesToProtect {
+		s := strings.Split(service, ":")
+		if len(s) != 2 {
+			slog.Error("please check your defined protected services", "Your input", service)
+			os.Exit(1)
+		}
+		serviceName, pPorts := s[0], s[1]
+
+		pP := strings.Split(pPorts, "@")
+
+		if len(s) != 2 {
+			slog.Error("please check your defined protected services, ports must fallow this structure: {SOURCE_PORT}@{DESTINATION_PORT}", "Your input", pPorts)
+			os.Exit(1)
+		}
+
+		sourcePort, destPort := pP[0], pP[1]
+
+		if !isNumber(sourcePort) || !isNumber(destPort) {
+			slog.Error("please check your defined protected services, ports must be numbers!", "Your input", pPorts)
+			os.Exit(1)
+		}
+
+		appendServerBlock(conf, *AllowedIPsFilePath, sourcePort, serviceName, destPort)
 	}
 
 	slog.Debug("Generated config ", "content", dumper.DumpConfig(conf, dumper.IndentedStyle))
@@ -95,7 +125,7 @@ func main() {
 
 }
 
-func appendServerBlock(conf *config.Config, includePath string, port string, proxyPass string) {
+func appendServerBlock(conf *config.Config, includePath string, sourcePort string, proxyPass string, destPort string) {
 	for i := 0; i < len(conf.Directives); i++ {
 		if conf.Directives[i].GetName() == "stream" {
 			block := conf.Directives[i].GetBlock()
@@ -107,11 +137,20 @@ func appendServerBlock(conf *config.Config, includePath string, port string, pro
 			}
 			listenDirective := &config.Directive{
 				Name:       "listen",
-				Parameters: []string{port},
+				Parameters: []string{sourcePort},
 			}
-			proxyPassDirective := &config.Directive{
-				Name:       "proxy_pass",
-				Parameters: []string{proxyPass + ":$server_port"},
+
+			var proxyPassDirective *config.Directive
+			if destPort == "" {
+				proxyPassDirective = &config.Directive{
+					Name:       "proxy_pass",
+					Parameters: []string{proxyPass + ":$server_port"},
+				}
+			} else {
+				proxyPassDirective = &config.Directive{
+					Name:       "proxy_pass",
+					Parameters: []string{proxyPass + ":" + destPort},
+				}
 			}
 
 			newBlock := &config.Block{
