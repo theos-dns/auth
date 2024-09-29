@@ -140,23 +140,30 @@ func appendServerBlock(conf *config.Config, includePath string, sourcePort strin
 				Parameters: []string{sourcePort},
 			}
 
-			var proxyPassDirective *config.Directive
+			var variable *config.Directive
+
 			if destPort == "" {
-				proxyPassDirective = &config.Directive{
-					Name:       "proxy_pass",
-					Parameters: []string{proxyPass + ":$server_port"},
+				variable = &config.Directive{
+					Name:       "set",
+					Parameters: []string{"$target", proxyPass + ":$server_port"},
 				}
 			} else {
-				proxyPassDirective = &config.Directive{
-					Name:       "proxy_pass",
-					Parameters: []string{proxyPass + ":" + destPort},
+				variable = &config.Directive{
+					Name:       "set",
+					Parameters: []string{"$target", proxyPass + ":" + destPort},
 				}
+			}
+
+			proxyPassDirective := &config.Directive{
+				Name:       "proxy_pass",
+				Parameters: []string{variable.Parameters[0]},
 			}
 
 			newBlock := &config.Block{
 				Directives: []config.IDirective{
 					includeDirective,
 					listenDirective,
+					variable,
 					proxyPassDirective,
 				},
 			}
