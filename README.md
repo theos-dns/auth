@@ -6,6 +6,7 @@
 - `DB_PATH` sqlLite database file path witch should be saved
 - `UPSTREAM` upstream server witch should get new authorized ip. seperated by ','
 - `PROTECT` other services that should be protected. Seperated by ','. Structure: `{SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}`
+- `STARTUP_SLEEP` seconds to sleep before starting nginx
 
 
 ## image Volumes

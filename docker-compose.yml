@@ -9,6 +9,7 @@ services:
       - DB_PATH=/root/app/auth/db/database.sqlite3
       - PROTECT=dns-server:53@53,coap:85@5688
       - UPSTREAM=
+      - STARTUP_SLEEP=
     volumes:
       - ${PWD}/database-auth.sqlite3:/root/app/auth/db/database.sqlite3
       - allowedIps:/var/nginx
