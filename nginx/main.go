@@ -18,6 +18,7 @@ var (
 	AllowedIPsFilePath = flag.String("allowed-ips-file", "/var/nginx/allowed-ips.conf", "nginx allowed ips file path")
 	NginxConfFilePath  = flag.String("nginx-conf-file", "/etc/nginx/nginx.conf", "nginx config file path ")
 	ServicesToProtect  = flag.String("protect", "dns-server:53@53,coap:85@5688", "other services that should be protected. Seperated by ','. Structure: {SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}")
+	Resolver           = flag.String("resolver", "127.0.0.53:53", "dns server that resolves protected-services and forward-to hosts")
 	help               = flag.Bool("help", false, "Display help message")
 )
 
@@ -64,6 +65,12 @@ func main() {
 		slog.Error("nginx config file is not valid!")
 		os.Exit(1)
 	}
+
+	if len(*Resolver) < 2 {
+		*Resolver = "127.0.0.53:53"
+	}
+
+	setResolverInStream(conf, *Resolver, "3s", "5s")
 
 	for _, port := range ports {
 		if strings.Contains(port, "-") {
@@ -125,6 +132,26 @@ func main() {
 		os.Exit(1)
 	}
 
+}
+
+func setResolverInStream(conf *config.Config, server string, valid string, timeout string) {
+	for i := 0; i < len(conf.Directives); i++ {
+		if conf.Directives[i].GetName() == "stream" {
+			block := conf.Directives[i].GetBlock()
+			realBlock := block.(*config.Block)
+
+			resolver := &config.Directive{
+				Name:       "resolver",
+				Parameters: []string{server, "valid=" + valid},
+			}
+			resolverTimeout := &config.Directive{
+				Name:       "resolver_timeout",
+				Parameters: []string{timeout},
+			}
+
+			realBlock.Directives = append(realBlock.Directives, resolver, resolverTimeout)
+		}
+	}
 }
 
 func appendServerBlock(conf *config.Config, includePath string, sourcePort string, proxyPass string, destPort string) {

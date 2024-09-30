@@ -18,4 +18,4 @@ COPY templates-conf/nginx.conf /etc/nginx/nginx.conf
 COPY templates-conf/default.conf /etc/nginx/conf.d/default.conf
 COPY templates-conf/allowed-ips.conf /var/nginx/allowed-ips.conf
 
-CMD ["/bin/sh", "-c",  "./nginx-forward-generator -to ${FORWARD_TO:?} -port ${PORTS:?} -protect ${PROTECT:?} -nginx-conf-file /etc/nginx/nginx.conf -allowed-ips-file /var/nginx/allowed-ips.conf && nginx -g 'daemon off;'"]
+CMD ["/bin/sh", "-c",  "./nginx-forward-generator -to ${FORWARD_TO:?} -port ${PORTS:?} -protect ${PROTECT:?} -resolver ${RESOLVER:-127.0.0.53:153} -nginx-conf-file /etc/nginx/nginx.conf -allowed-ips-file /var/nginx/allowed-ips.conf && sleep ${STARTUP_SLEEP:-0} && nginx -g 'daemon off;'"]

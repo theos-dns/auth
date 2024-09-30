@@ -10,6 +10,7 @@ services:
       - PROTECT=dns-server:53@53,coap:85@5688
       - UPSTREAM=
       - STARTUP_SLEEP=
+      - RESOLVER=127.0.0.53:53
     volumes:
       - ${PWD}/database-auth.sqlite3:/root/app/auth/db/database.sqlite3
       - allowedIps:/var/nginx

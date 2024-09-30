@@ -7,12 +7,11 @@ forward all incoming requests (which was checked that are authorized by `/var/ng
 Also on port `81` it will return the ip address of client
 
 ## image ENVs
-`FORWARD_TO` hostname or ip which requests should be forwarded
-
-`PORTS` ports listen to, seperated by ',' like: 80,443,1080 also can be range like 8080-8090, or combination of both
-
-`PROTECT` other services that should be protected. Seperated by ','. Structure: {SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}
-
+- `FORWARD_TO` hostname or ip which requests should be forwarded
+- `PORTS` ports listen to, seperated by ',' like: 80,443,1080 also can be range like 8080-8090, or combination of both
+- `PROTECT` other services that should be protected. Seperated by ','. Structure: {SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}
+- `STARTUP_SLEEP` seconds to sleep before starting nginx
+- `RESOLVER` dns server that resolves protected-services and forward-to hosts
 
 ## usage of `nginx-forward-generator`
 
