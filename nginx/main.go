@@ -85,7 +85,7 @@ func main() {
 			end, _ := strconv.Atoi(pRange[1])
 
 			for i := start; i <= end; i++ {
-				appendServerBlock(conf, *AllowedIPsFilePath, strconv.Itoa(i), *ForwardTo, strconv.Itoa(i))
+				appendServerBlock(conf, *AllowedIPsFilePath, strconv.Itoa(i), *ForwardTo, strconv.Itoa(i), "tcp,udp")
 			}
 
 		} else {
@@ -93,7 +93,7 @@ func main() {
 				slog.Error("defined port in not correct, please check your input!", "Your input", port)
 				os.Exit(1)
 			}
-			appendServerBlock(conf, *AllowedIPsFilePath, port, *ForwardTo, port)
+			appendServerBlock(conf, *AllowedIPsFilePath, port, *ForwardTo, port, "tcp,udp")
 
 		}
 
@@ -121,7 +121,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		appendServerBlock(conf, *AllowedIPsFilePath, sourcePort, serviceName, destPort)
+		appendServerBlock(conf, *AllowedIPsFilePath, sourcePort, serviceName, destPort, "tcp,udp")
 	}
 
 	slog.Debug("Generated config ", "content", dumper.DumpConfig(conf, dumper.IndentedStyle))
@@ -154,48 +154,62 @@ func setResolverInStream(conf *config.Config, server string, valid string, timeo
 	}
 }
 
-func appendServerBlock(conf *config.Config, includePath string, sourcePort string, proxyPass string, destPort string) {
+func appendServerBlock(conf *config.Config, includePath string, sourcePort string, proxyPass string, destPort string, protocols string) {
+	if len(protocols) == 0 {
+		protocols = "tcp"
+	}
+
+	pros := slices.DeleteFunc(strings.Split(protocols, ","), func(e string) bool {
+		return e == ""
+	})
+
 	for i := 0; i < len(conf.Directives); i++ {
 		if conf.Directives[i].GetName() == "stream" {
 			block := conf.Directives[i].GetBlock()
 			realBlock := block.(*config.Block)
 
-			includeDirective := &config.Directive{
-				Name:       "include",
-				Parameters: []string{includePath},
-			}
-			listenDirective := &config.Directive{
-				Name:       "listen",
-				Parameters: []string{sourcePort},
-			}
-
-			var proxyPassDirective *config.Directive
-
-			if destPort == "" {
-				proxyPassDirective = &config.Directive{
-					Name:       "proxy_pass",
-					Parameters: []string{proxyPass + ":$server_port"},
+			for _, p := range pros {
+				includeDirective := &config.Directive{
+					Name:       "include",
+					Parameters: []string{includePath},
 				}
-			} else {
-				proxyPassDirective = &config.Directive{
-					Name:       "proxy_pass",
-					Parameters: []string{proxyPass + ":" + destPort},
+
+				listenDirective := &config.Directive{
+					Name:       "listen",
+					Parameters: []string{sourcePort},
 				}
-			}
+				if p == "udp" {
+					listenDirective.Parameters = append(listenDirective.Parameters, "udp")
+				}
 
-			newBlock := &config.Block{
-				Directives: []config.IDirective{
-					includeDirective,
-					listenDirective,
-					proxyPassDirective,
-				},
-			}
-			newDirective := &config.Directive{
-				Name:  "server",
-				Block: newBlock,
-			}
+				var proxyPassDirective *config.Directive
 
-			realBlock.Directives = append(realBlock.Directives, newDirective)
+				if destPort == "" {
+					proxyPassDirective = &config.Directive{
+						Name:       "proxy_pass",
+						Parameters: []string{proxyPass + ":$server_port"},
+					}
+				} else {
+					proxyPassDirective = &config.Directive{
+						Name:       "proxy_pass",
+						Parameters: []string{proxyPass + ":" + destPort},
+					}
+				}
+
+				newBlock := &config.Block{
+					Directives: []config.IDirective{
+						includeDirective,
+						listenDirective,
+						proxyPassDirective,
+					},
+				}
+				newDirective := &config.Directive{
+					Name:  "server",
+					Block: newBlock,
+				}
+
+				realBlock.Directives = append(realBlock.Directives, newDirective)
+			}
 
 		}
 
