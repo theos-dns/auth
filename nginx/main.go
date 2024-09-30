@@ -74,17 +74,19 @@ func main() {
 				slog.Error("defined port in not correct, please check your input!", "Your input", pRange)
 				os.Exit(1)
 			}
-			start := pRange[0]
-			end := pRange[1]
+			start, _ := strconv.Atoi(pRange[0])
+			end, _ := strconv.Atoi(pRange[1])
 
-			appendServerBlock(conf, *AllowedIPsFilePath, start+"-"+end, *ForwardTo, "")
+			for i := start; i <= end; i++ {
+				appendServerBlock(conf, *AllowedIPsFilePath, strconv.Itoa(i), *ForwardTo, strconv.Itoa(i))
+			}
 
 		} else {
 			if !isNumber(port) {
 				slog.Error("defined port in not correct, please check your input!", "Your input", port)
 				os.Exit(1)
 			}
-			appendServerBlock(conf, *AllowedIPsFilePath, port, *ForwardTo, "")
+			appendServerBlock(conf, *AllowedIPsFilePath, port, *ForwardTo, port)
 
 		}
 
