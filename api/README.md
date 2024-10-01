@@ -27,9 +27,14 @@ Usage of theos_dns_auth_api:
 
 ### Register ip: 
 ```
-/tap-in?ip=127.0.0.1&token=123456789
+/tap-in?ip=192.161.1.5&token=USER_TOKEN
 ```
 
+### Register user: 
+```
+/register-user?ip=192.161.1.5&token=USER_TOKEN&adminToken=ADMIN_TOKEN&username=USERNANE&limitation=2
+```
+register new user or if exist allow its ip(using for upstream call)
 ### interface to register ip:
 ```
 /

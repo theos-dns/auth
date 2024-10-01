@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -98,7 +99,6 @@ func main() {
 
 		var user User
 		isExist, err := getUser(db, logger, &user, token)
-
 		if !isExist {
 			if err != nil {
 				logger.Error("error in validating token", "Details", err)
@@ -118,45 +118,92 @@ func main() {
 			}
 		}
 
-		allowedIpsFileLines, err := readLines(*AllowedIPsFilePath)
-		if err != nil {
-			logger.Error("couldn't read allowed ips file!", "Details", err)
-			c.String(http.StatusInternalServerError, "server logs")
-			return
-		}
-
-		for _, line := range allowedIpsFileLines {
-			if strings.Contains(line, ip) {
-				c.String(http.StatusOK, "already added")
-				return
-			}
-		}
-
-		err = updateUserLastIp(db, logger, &user, ip)
+		isAlreadyAllowed, err := isIpInAllowedIpFile(ip, *AllowedIPsFilePath, logger)
 		if err != nil {
 			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
-		err = addIpToAllowedList(logger, *AllowedIPsFilePath, ip, &user)
-		if err != nil {
-			c.String(http.StatusInternalServerError, "server logs")
+		if isAlreadyAllowed {
+			c.String(http.StatusOK, "already added")
 			return
 		}
 
-		err = reloadNginx(logger)
+		err = allowIp(db, &user, ip, logger)
 		if err != nil {
-			c.String(http.StatusInternalServerError, "server logs")
+			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}
-
-		logger.Debug("added new ip =>")
-		logger.Debug("allow " + ip + " with token: " + token)
 
 		c.String(http.StatusOK, "added")
 
 		return
+	})
 
+	server.GET("/register-user", func(c *gin.Context) {
+		ip := c.Request.URL.Query().Get("ip")
+		token := c.Request.URL.Query().Get("token")
+		username := c.Request.URL.Query().Get("username")
+		limitation := c.Request.URL.Query().Get("limitation")
+		adminToken := c.Request.URL.Query().Get("adminToken")
+
+		if adminToken == "" || token == "" {
+			c.String(http.StatusBadRequest, "Bad Request")
+			return
+		}
+
+		if adminToken != *AdminToken {
+			c.String(http.StatusUnauthorized, "401")
+			return
+		}
+
+		var user User
+		isExist, err := getUser(db, logger, &user, token)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "server logs")
+			return
+		}
+
+		if !isExist {
+			user.Token = token
+			user.Username = sql.NullString{String: username, Valid: true}
+			if len(limitation) > 0 {
+				if user.Limitation, err = strconv.Atoi(limitation); err != nil {
+					logger.Error("limitation must be a number!", "UserInput", limitation)
+					c.String(http.StatusInternalServerError, "server logs")
+					return
+				}
+			} else {
+				user.Limitation = 1
+			}
+			err = insertUser(db, logger, &user)
+			if err != nil {
+				c.String(http.StatusInternalServerError, "server logs")
+				return
+			}
+			logger.Debug("added new user", "Token", user.Token, "Username", user.Username.String)
+		}
+
+		if len(ip) > 6 {
+			isAlreadyAllowed, err := isIpInAllowedIpFile(ip, *AllowedIPsFilePath, logger)
+			if err != nil {
+				c.String(http.StatusInternalServerError, "server logs")
+				return
+			}
+
+			if isAlreadyAllowed {
+				c.String(http.StatusOK, "already added")
+				return
+			}
+
+			err = allowIp(db, &user, ip, logger)
+			if err != nil {
+				c.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+
+		c.String(http.StatusOK, "added")
 	})
 
 	logger.Info("listening on => " + *Host + ":" + *Port)
@@ -270,6 +317,23 @@ func updateUserLastIp(db *sql.DB, logger *slog.Logger, user *User, ip string) er
 	return nil
 }
 
+func insertUser(db *sql.DB, logger *slog.Logger, user *User) error {
+	stmt, err := db.Prepare("INSERT INTO users(token,username,last_ip, limitation) VALUES(?, ?, NULL, ?);")
+	if err != nil {
+		logger.Error("couldn't create user!", "Details", err)
+		return err
+	}
+
+	defer stmt.Close()
+	_, err = stmt.Exec(user.Token, user.Username, user.Limitation)
+	if err != nil {
+		logger.Error("couldn't create user!", "Details", err)
+		return err
+	}
+
+	return nil
+}
+
 func addIpToAllowedList(logger *slog.Logger, allowedIpFilePath string, ip string, user *User) error {
 	allowedIpsFileLines, err := readLines(allowedIpFilePath)
 	if err != nil {
@@ -314,4 +378,42 @@ func reloadNginx(logger *slog.Logger) error {
 	}
 
 	return nil
+}
+
+func allowIp(db *sql.DB, user *User, ip string, logger *slog.Logger) error {
+	var err error
+
+	err = updateUserLastIp(db, logger, user, ip)
+	if err != nil {
+		return errors.New("server logs")
+	}
+
+	err = addIpToAllowedList(logger, *AllowedIPsFilePath, ip, user)
+	if err != nil {
+		return errors.New("server logs")
+	}
+
+	err = reloadNginx(logger)
+	if err != nil {
+		return errors.New("server logs")
+	}
+
+	logger.Debug("allow " + ip + " with token: " + user.Token)
+
+	return nil
+}
+
+func isIpInAllowedIpFile(ip string, allowedIpFilePath string, logger *slog.Logger) (bool, error) {
+	allowedIpsFileLines, err := readLines(allowedIpFilePath)
+	if err != nil {
+		logger.Error("couldn't read allowed ips file!", "Details", err)
+		return false, err
+	}
+
+	for _, line := range allowedIpsFileLines {
+		if strings.Contains(line, ip) {
+			return true, nil
+		}
+	}
+	return false, nil
 }

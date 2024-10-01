@@ -23,6 +23,6 @@
 - [x] protect other services
 - [x] replace previous allowed ips
 - [ ] register user
-- - [ ] api
+- - [x] api
 - - [ ] interface
 - [ ] register user in upstream
