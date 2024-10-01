@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"errors"
 	"flag"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
-	"io/ioutil"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -24,6 +25,7 @@ var (
 	Port               = flag.String("port", "82", "web server port running on")
 	Host               = flag.String("host", "0.0.0.0", "web server host running on")
 	UpstreamServer     = flag.String("upstream", "", "upstream server witch should get new authorized ip. seperated by ','")
+	AdminToken         = flag.String("admin-token", "", "admin token which will be used to create users and all upstreams")
 	help               = flag.Bool("help", false, "Display help message")
 )
 
@@ -58,9 +60,15 @@ func main() {
 		fatalErrLog(logger, "-allowed-ips-file path is not set!!", nil)
 	}
 
+	if len(*AdminToken) < 2 {
+		fatalErrLog(logger, "-admin-token is not set, It's required!!", nil)
+	}
+
 	upstreams := slices.DeleteFunc(strings.Split(*UpstreamServer, ","), func(e string) bool {
 		return e == ""
 	})
+
+	gin.SetMode(gin.ReleaseMode)
 
 	server := gin.Default()
 
@@ -70,7 +78,7 @@ func main() {
 	}
 
 	defer db.Close()
-	_, err = db.Exec("create table if not exists users (token text, username text, last_ip text, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP)")
+	_, err = db.Exec("create table if not exists users (token TEXT UNIQUE NOT NULL , username TEXT, last_ip TEXT, limitation INTEGER DEFAULT 1 NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMP)")
 	if err != nil {
 		fatalErrLog(logger, "couldn't create users table", err)
 	}
@@ -88,86 +96,56 @@ func main() {
 			return
 		}
 
-		// Check if token is valid
-		stmt, err := db.Prepare("select last_ip from users where token = ?")
-		if err != nil {
-			logger.Error("error in validating token", "Details", err)
-			c.String(http.StatusInternalServerError, "server logs")
-			return
-		}
+		var user User
+		isExist, err := getUser(db, logger, &user, token)
 
-		defer stmt.Close()
+		if !isExist {
+			if err != nil {
+				logger.Error("error in validating token", "Details", err)
+				c.String(http.StatusInternalServerError, "server logs")
+				return
+			}
 
-		var lastIp string
-		err = stmt.QueryRow(token).Scan(&lastIp)
-		if err != nil {
-			logger.Warn("", "Details", err)
-		}
-
-		if err != nil {
 			c.String(http.StatusUnauthorized, "401")
 			return
 		}
 
 		// call upstreams
 		for _, upstream := range upstreams {
-			err = callUpstream(upstream, ip, token, "", logger)
+			err = callUpstream(upstream, ip, token, *AdminToken, logger)
 			if err != nil {
 				logger.Error("couldn't call upstream!", "Upstream", upstream, "Details", err)
-				//c.String(http.StatusInternalServerError, "server logs")
-				//return
 			}
 		}
 
-		input, err := ioutil.ReadFile(*AllowedIPsFilePath)
+		allowedIpsFileLines, err := readLines(*AllowedIPsFilePath)
 		if err != nil {
 			logger.Error("couldn't read allowed ips file!", "Details", err)
 			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
-		var ipAlreadyExist bool = false
-		if strings.Contains(string(input), ip) {
-			ipAlreadyExist = true
-		}
-		if ipAlreadyExist {
-			c.String(http.StatusOK, "already added")
-			return
+		for _, line := range allowedIpsFileLines {
+			if strings.Contains(line, ip) {
+				c.String(http.StatusOK, "already added")
+				return
+			}
 		}
 
-		// Update db, last_ip and updated_at
-		currentTime := time.Now()
-		stmtUpdateLogin, err := db.Prepare("UPDATE users SET last_ip = ?, updated_at = ? WHERE token = ?")
+		err = updateUserLastIp(db, logger, &user, ip)
 		if err != nil {
-			logger.Error("couldn't update last login!", "Details", err)
 			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
-		defer stmtUpdateLogin.Close()
-		_, err = stmtUpdateLogin.Exec(ip, currentTime.Format("2006-01-02 15:04:05"), token)
+		err = addIpToAllowedList(logger, *AllowedIPsFilePath, ip, &user)
 		if err != nil {
-			logger.Error("couldn't update last login!", "Details", err)
 			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
 
-		// Add ip to allowed-ips.conf
-		output := "allow " + ip + "; #" + token + " ------ " + currentTime.String() + "\n" + string(input)
-		err = ioutil.WriteFile(*AllowedIPsFilePath, []byte(output), 0644)
+		err = reloadNginx(logger)
 		if err != nil {
-			logger.Error("couldn't save allowed ips file!", "Details", err)
-			c.String(http.StatusInternalServerError, "server logs")
-			return
-		}
-
-		// Reload nginx
-		cmd := exec.Command("nginx", "-s", "reload")
-		cmdOutput, err := cmd.Output()
-		logger.Debug(string(cmdOutput))
-
-		if err != nil {
-			logger.Error("couldn't reload nginx!", "Details", err)
 			c.String(http.StatusInternalServerError, "server logs")
 			return
 		}
@@ -181,6 +159,7 @@ func main() {
 
 	})
 
+	logger.Info("listening on => " + *Host + ":" + *Port)
 	err = server.Run(*Host + ":" + *Port)
 	fatalErrLog(logger, "Err in starting server!", err)
 }
@@ -223,6 +202,116 @@ func callUpstream(upstream string, ip string, token string, adminToken string, l
 	}
 
 	logger.Debug("upstream %s: status code: %d\n", upstream, res.StatusCode)
+
+	return nil
+}
+
+func readLines(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
+}
+
+func writeLines(lines []string, path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	w := bufio.NewWriter(file)
+	for _, line := range lines {
+		fmt.Fprintln(w, line)
+	}
+	return w.Flush()
+}
+
+func getUser(db *sql.DB, logger *slog.Logger, user *User, token string) (bool, error) {
+	stmt, err := db.Prepare("select * from users where token = ?")
+	if err != nil {
+		logger.Error("error in getting user", "Details", err)
+		return false, errors.New("error in getting user")
+	}
+
+	defer stmt.Close()
+
+	err = stmt.QueryRow(token).Scan(&user.Token, &user.Username, &user.LastIp, &user.Limitation, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func updateUserLastIp(db *sql.DB, logger *slog.Logger, user *User, ip string) error {
+	currentTime := time.Now()
+	stmt, err := db.Prepare("UPDATE users SET last_ip = ?, updated_at = ? WHERE token = ?")
+	if err != nil {
+		logger.Error("couldn't update last login!", "Details", err)
+		return err
+	}
+
+	defer stmt.Close()
+	_, err = stmt.Exec(ip, currentTime.Format("2006-01-02 15:04:05"), user.Token)
+	if err != nil {
+		logger.Error("couldn't update last login!", "Details", err)
+		return err
+	}
+
+	return nil
+}
+
+func addIpToAllowedList(logger *slog.Logger, allowedIpFilePath string, ip string, user *User) error {
+	allowedIpsFileLines, err := readLines(allowedIpFilePath)
+	if err != nil {
+		logger.Error("couldn't read allowed ips file!", "Details", err)
+		return err
+	}
+
+	currentTime := time.Now()
+	newLine := "allow " + ip + "; #(" + user.Token + ") ------ " + currentTime.String()
+
+	allowedIpsFileLines = slices.Insert(allowedIpsFileLines, 0, newLine)
+
+	var resultLines []string
+	var userAccessTimes = 0
+	for _, line := range allowedIpsFileLines {
+		if !strings.Contains(line, "("+user.Token+")") {
+			resultLines = append(resultLines, line)
+			continue
+		}
+
+		userAccessTimes += 1
+		if user.Limitation >= userAccessTimes {
+			resultLines = append(resultLines, line)
+		}
+	}
+
+	err = writeLines(resultLines, allowedIpFilePath)
+	if err != nil {
+		logger.Error("couldn't save allowed ips file!", "Details", err)
+		return err
+	}
+	return nil
+}
+
+func reloadNginx(logger *slog.Logger) error {
+	cmd := exec.Command("nginx", "-s", "reload")
+	_, err := cmd.Output()
+
+	if err != nil {
+		logger.Error("couldn't reload nginx!", "Details", err)
+		return err
+	}
 
 	return nil
 }

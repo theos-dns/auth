@@ -6,6 +6,8 @@ this file is not for standalone uses. combine it with [nginx](../nginx) docker f
 ## usage
 ```
 Usage of theos_dns_auth_api:
+  -admin-token string
+        admin token which will be used to create users and all upstreams
   -allowed-ips-file string
         nginx allowed ips file path (default "/var/nginx/allowed-ips.conf")
   -db string
@@ -16,6 +18,8 @@ Usage of theos_dns_auth_api:
         web server host running on (default "0.0.0.0")
   -port string
         web server port running on (default "82")
+  -upstream string
+        upstream server witch should get new authorized ip. seperated by ','
 ```
 
 

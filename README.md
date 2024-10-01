@@ -21,8 +21,8 @@
 ## todo:
 - [x] call upstreams
 - [x] protect other services
+- [x] replace previous allowed ips
 - [ ] register user
 - - [ ] api
 - - [ ] interface
 - [ ] register user in upstream
-- [ ] replace previous allowed ips

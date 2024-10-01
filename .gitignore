@@ -3,3 +3,6 @@
 t/
 
 */**/theos_dns_auth_api
+
+*/**/test-allowed-ips.conf
+
