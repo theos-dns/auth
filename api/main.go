@@ -112,7 +112,7 @@ func main() {
 
 		// call upstreams
 		for _, upstream := range upstreams {
-			err = callUpstream(upstream, ip, token, *AdminToken, logger)
+			err = callUpstream(upstream, ip, *AdminToken, &user, logger)
 			if err != nil {
 				logger.Error("couldn't call upstream!", "Upstream", upstream, "Details", err)
 			}
@@ -227,16 +227,18 @@ func fatalErrLog(logger *slog.Logger, msg string, err error) {
 	os.Exit(1)
 }
 
-func callUpstream(upstream string, ip string, token string, adminToken string, logger *slog.Logger) error {
+func callUpstream(upstream string, ip string, adminToken string, user *User, logger *slog.Logger) error {
 	base := url.URL{}
 
 	base.Host = upstream
 	base.Scheme = "http"
-	base.Path += "/tap-in"
+	base.Path += "/register-user"
 
 	params := url.Values{}
 	params.Add("ip", ip)
-	params.Add("token", token)
+	params.Add("token", user.Token)
+	params.Add("username", user.Username.String)
+	params.Add("limitation", strconv.Itoa(user.Limitation))
 	params.Add("adminToken", adminToken)
 	base.RawQuery = params.Encode()
 
