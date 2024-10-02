@@ -11,6 +11,7 @@ services:
       - UPSTREAM=
       - STARTUP_SLEEP=
       - RESOLVER=127.0.0.53:53
+      - ADMIN_TOKEN=zEDaeblMx6Kc863A2oqogtykV
     volumes:
       - ${PWD}/database-auth.sqlite3:/root/app/auth/db/database.sqlite3
       - allowedIps:/var/nginx

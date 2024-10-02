@@ -1,13 +1,14 @@
 # theos dns auth
 
 ## image ENVs
-- `FORWARD_TO` hostname or ip which requests should be forwarded
-- `PORTS` ports that nginx listen to, seperated by ',' like: 80,443,1080 also can be range like 8080-8090, or combination of both
-- `DB_PATH` sqlLite database file path witch should be saved
-- `UPSTREAM` upstream server witch should get new authorized ip. seperated by ','
-- `PROTECT` other services that should be protected. Seperated by ','. Structure: `{SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}`
-- `STARTUP_SLEEP` seconds to sleep before starting nginx
-- `RESOLVER` dns server that resolves protected-services and forward-to hosts
+- `FORWARD_TO`: hostname or ip which requests should be forwarded
+- `PORTS`: ports that nginx listen to, seperated by ',' like: 80,443,1080 also can be range like 8080-8090, or combination of both
+- `DB_PATH`: sqlLite database file path witch should be saved
+- `UPSTREAM`: upstream server witch should get new authorized ip. seperated by ','
+- `PROTECT`: other services that should be protected. Seperated by ','. Structure: `{SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}`
+- `STARTUP_SLEEP`: seconds to sleep before starting nginx
+- `RESOLVER`: dns server that resolves protected-services and forward-to hosts
+- `ADMIN_TOKEN`: admin token which will be used to create users and all upstreams. must be same as upstream `ADMIN_TOKEN`
 
 
 ## image Volumes
@@ -25,4 +26,4 @@
 - [ ] register user
 - - [x] api
 - - [ ] interface
-- [ ] register user in upstream
+- [x] register user in upstream
