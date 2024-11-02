@@ -34,6 +34,12 @@ Usage of theos_dns_auth_api:
 ```
 /register-user?ip=192.161.1.5&token=USER_TOKEN&adminToken=ADMIN_TOKEN&username=USERNANE&limitation=2
 ```
+### update upstream:
+use to create users on new upstreams
+```
+/update-upstreams
+```
+
 register new user or if exist allow its ip(using for upstream call)
 ### interface to register ip:
 ```
