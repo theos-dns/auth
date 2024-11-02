@@ -178,6 +178,17 @@ func appendServerBlock(conf *config.Config, includePath string, sourcePort strin
 					Name:       "listen",
 					Parameters: []string{sourcePort},
 				}
+
+				proxyConnectTimeoutDirective := &config.Directive{
+					Name:       "proxy_connect_timeout",
+					Parameters: []string{"5s"},
+				}
+
+				proxyTimeoutDirective := &config.Directive{
+					Name:       "proxy_timeout",
+					Parameters: []string{"60s"},
+				}
+
 				if p == "udp" {
 					listenDirective.Parameters = append(listenDirective.Parameters, "udp")
 				}
@@ -201,6 +212,8 @@ func appendServerBlock(conf *config.Config, includePath string, sourcePort strin
 						includeDirective,
 						listenDirective,
 						proxyPassDirective,
+						proxyConnectTimeoutDirective,
+						proxyTimeoutDirective,
 					},
 				}
 				newDirective := &config.Directive{
