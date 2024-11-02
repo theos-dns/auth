@@ -140,6 +140,29 @@ func main() {
 		return
 	})
 
+	server.POST("/update-upstreams", func(c *gin.Context) {
+		// send users
+		users, err := getUsers(db)
+		if err != nil {
+			logger.Error("couldn't get users!", "Details", err)
+			c.String(http.StatusInternalServerError, "server logs")
+			return
+		}
+
+		for _, user := range users {
+			for _, upstream := range upstreams {
+				err = callUpstream(upstream, "", *AdminToken, &user, logger)
+				if err != nil {
+					logger.Error("couldn't update upstream!", "Upstream", upstream, "Details", err)
+				}
+			}
+		}
+
+		c.String(http.StatusOK, "registered all")
+
+		return
+	})
+
 	server.GET("/register-user", func(c *gin.Context) {
 		ip := c.Request.URL.Query().Get("ip")
 		token := c.Request.URL.Query().Get("token")
@@ -299,6 +322,35 @@ func getUser(db *sql.DB, logger *slog.Logger, user *User, token string) (bool, e
 	}
 
 	return true, nil
+}
+
+func getUsers(db *sql.DB) ([]User, error) {
+	stmt, err := db.Prepare("select * from users")
+	if err != nil {
+		return nil, err
+	}
+
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.Token, &user.Username, &user.LastIp, &user.Limitation, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			return users, err
+		}
+		users = append(users, user)
+	}
+	if err = rows.Err(); err != nil {
+		return users, err
+	}
+
+	return users, nil
 }
 
 func updateUserLastIp(db *sql.DB, logger *slog.Logger, user *User, ip string) error {
