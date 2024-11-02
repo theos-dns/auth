@@ -140,7 +140,7 @@ func main() {
 		return
 	})
 
-	server.POST("/update-upstreams", func(c *gin.Context) {
+	server.GET("/update-upstreams", func(c *gin.Context) {
 		// send users
 		users, err := getUsers(db)
 		if err != nil {
