@@ -216,6 +216,15 @@ func appendServerBlock(conf *config.Config, includePath string, sourcePort strin
 						proxyTimeoutDirective,
 					},
 				}
+
+				if p == "udp" {
+					proxyResponsesDirective := &config.Directive{
+						Name:       "proxy_responses",
+						Parameters: []string{"0"},
+					}
+					newBlock.Directives = append(newBlock.Directives, proxyResponsesDirective)
+				}
+
 				newDirective := &config.Directive{
 					Name:  "server",
 					Block: newBlock,
