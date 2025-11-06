@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /root/go/
 COPY . .
@@ -7,8 +7,9 @@ RUN go get .
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o nginx-forward-generator .
 
 
-FROM nginx:1.27-alpine
+FROM nginx:1.29-alpine
 LABEL org.opencontainers.image.source="https://github.com/theos-dns/auth/tree/master/nginx"
+LABEL org.opencontainers.image.authors="Theos DNS"
 
 WORKDIR /root/app
 

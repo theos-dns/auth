@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /root/go/
 COPY . .
@@ -7,7 +7,7 @@ RUN go get .
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o auth .
 
 
-FROM alpine:3.17
+FROM alpine:3.22
 LABEL org.opencontainers.image.source="https://github.com/theos-dns/auth/tree/master/api"
 
 WORKDIR /root/auth
