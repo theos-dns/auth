@@ -1,22 +1,30 @@
-# theos dns auth
+# Theos DNS Auth
 
-## image ENVs
-- `FORWARD_TO`: hostname or ip which requests should be forwarded
-- `PORTS`: ports that nginx listen to, seperated by ',' like: 80,443,1080 also can be range like 8080-8090, or combination of both
-- `DB_PATH`: sqlLite database file path witch should be saved
-- `UPSTREAM`: upstream server witch should get new authorized ip. seperated by ','
-- `PROTECT`: other services that should be protected. Seperated by ','. Structure: `{SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}`
-- `STARTUP_SLEEP`: seconds to sleep before starting nginx
-- `RESOLVER`: dns server that resolves protected-services and forward-to hosts
-- `ADMIN_TOKEN`: admin token which will be used to create users and all upstreams. must be same as upstream `ADMIN_TOKEN`
+This stack manages access to server ports and services. It can protect ports (e.g., port 80) or proxy-pass a service. For example, it can protect port 53 while redirecting its traffic to the corresponding service, such as a DNS server.
 
+## Features
+- Protects specific ports and services.
+- Redirects traffic to designated services.
+- Manages allowed IPs for access control.
+- Supports upstream communication for authorized IP updates.
+- Provides an API for user registration and management.
 
-## image Volumes
-- `/root/app/auth/db/` which is the default location for `sqllite` db file
-- `/var/nginx/allowed-ips.conf` which saves allowed ips
+## Image ENVs
+- `FORWARD_TO`: Hostname or IP to which requests should be forwarded. The port remains unchanged.
+- `PORTS`: Ports that Nginx listens to, separated by `,` (e.g., `80,443,1080`) or ranges (e.g., `8080-8090`), or a combination of both.
+- `DB_PATH`: SQLite database file path where data should be saved.
+- `UPSTREAM`: Upstream server(s) to receive new authorized IPs, separated by `,`.
+- `PROTECT`: Other services to protect, separated by `,`. Structure: `{SERVICE_OR_IP}:{SOURCE_PORT}@{DESTINATION_PORT}`.
+- `STARTUP_SLEEP`: Number of seconds to sleep before starting Nginx.
+- `RESOLVER`: DNS server that resolves protected services and forward-to hosts.
+- `ADMIN_TOKEN`: Admin token used for creating users and managing upstreams. Must match the upstream `ADMIN_TOKEN`.
 
-## image
-`docker pull ghcr.io/theos-dns/auth:latest`
+### Note
+The combination of `FORWARD_TO` and `PORTS` works similarly to `PROTECT`, allowing traffic redirection and port protection.
+
+## Image Volumes
+- `/root/app/auth/db/`: Default location for the SQLite database file.
+- `/var/nginx/allowed-ips.conf`: File that stores allowed IPs.
 
 
 ## todo:
