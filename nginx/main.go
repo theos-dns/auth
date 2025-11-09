@@ -141,12 +141,15 @@ func setResolverInStream(conf *config.Config, server string, valid string, timeo
 			realBlock := block.(*config.Block)
 
 			resolver := &config.Directive{
-				Name:       "resolver",
-				Parameters: []string{server, "valid=" + valid},
+				Name: "resolver",
+				Parameters: []config.Parameter{
+					{Value: server},
+					{Value: "valid=" + valid},
+				},
 			}
 			resolverTimeout := &config.Directive{
 				Name:       "resolver_timeout",
-				Parameters: []string{timeout},
+				Parameters: []config.Parameter{{Value: timeout}},
 			}
 
 			realBlock.Directives = append(realBlock.Directives, resolver, resolverTimeout)
@@ -171,26 +174,26 @@ func appendServerBlock(conf *config.Config, includePath string, sourcePort strin
 			for _, p := range pros {
 				includeDirective := &config.Directive{
 					Name:       "include",
-					Parameters: []string{includePath},
+					Parameters: []config.Parameter{{Value: includePath}},
 				}
 
 				listenDirective := &config.Directive{
 					Name:       "listen",
-					Parameters: []string{sourcePort},
+					Parameters: []config.Parameter{{Value: sourcePort}},
 				}
 
 				proxyConnectTimeoutDirective := &config.Directive{
 					Name:       "proxy_connect_timeout",
-					Parameters: []string{"5s"},
+					Parameters: []config.Parameter{{Value: "5s"}},
 				}
 
 				proxyTimeoutDirective := &config.Directive{
 					Name:       "proxy_timeout",
-					Parameters: []string{"60s"},
+					Parameters: []config.Parameter{{Value: "60s"}},
 				}
 
 				if p == "udp" {
-					listenDirective.Parameters = append(listenDirective.Parameters, "udp")
+					listenDirective.Parameters = append(listenDirective.Parameters, config.Parameter{Value: "udp"})
 				}
 
 				var proxyPassDirective *config.Directive
@@ -198,12 +201,12 @@ func appendServerBlock(conf *config.Config, includePath string, sourcePort strin
 				if destPort == "" {
 					proxyPassDirective = &config.Directive{
 						Name:       "proxy_pass",
-						Parameters: []string{proxyPass + ":$server_port"},
+						Parameters: []config.Parameter{{Value: proxyPass + ":$server_port"}},
 					}
 				} else {
 					proxyPassDirective = &config.Directive{
 						Name:       "proxy_pass",
-						Parameters: []string{proxyPass + ":" + destPort},
+						Parameters: []config.Parameter{{Value: proxyPass + ":" + destPort}},
 					}
 				}
 
@@ -220,7 +223,7 @@ func appendServerBlock(conf *config.Config, includePath string, sourcePort strin
 				if p == "udp" {
 					proxyResponsesDirective := &config.Directive{
 						Name:       "proxy_responses",
-						Parameters: []string{"0"},
+						Parameters: []config.Parameter{{Value: "0"}},
 					}
 					newBlock.Directives = append(newBlock.Directives, proxyResponsesDirective)
 				}
