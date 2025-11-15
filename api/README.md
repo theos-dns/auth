@@ -40,6 +40,12 @@ use to create users on new upstreams
 /update-upstreams
 ```
 
+### check ip is registered:
+check if ip is registered
+```
+/check-ip?ip=192.161.1.5
+```
+
 register new user or if exist allow its ip(using for upstream call)
 ### interface to register ip:
 ```

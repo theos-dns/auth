@@ -140,6 +140,30 @@ func main() {
 		return
 	})
 
+	server.GET("/check-ip", func(c *gin.Context) {
+		ip := c.Request.URL.Query().Get("ip")
+
+		if ip == "" {
+			c.String(http.StatusBadRequest, "Bad Request")
+			return
+		}
+
+		isRegistered, err := isIpRegistered(logger, *AllowedIPsFilePath, ip)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "server logs")
+			return
+		}
+
+		if isRegistered {
+			c.JSON(http.StatusOK, gin.H{"registered": true, "ip": ip})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"registered": false, "ip": ip})
+
+		return
+	})
+
 	server.GET("/update-upstreams", func(c *gin.Context) {
 		// send users
 		users, err := getUsers(db)
@@ -386,6 +410,21 @@ func insertUser(db *sql.DB, logger *slog.Logger, user *User) error {
 	}
 
 	return nil
+}
+
+func isIpRegistered(logger *slog.Logger, allowedIpFilePath string, ip string) (bool, error) {
+	// TODO: read each line and check it here, dont load all file into memory!
+	allowedIpsFileLines, err := readLines(allowedIpFilePath)
+	if err != nil {
+		logger.Error("couldn't read allowed ips file!", "Details", err)
+		return false, err
+	}
+	for _, line := range allowedIpsFileLines {
+		if strings.Contains(line, ip) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func addIpToAllowedList(logger *slog.Logger, allowedIpFilePath string, ip string, user *User) error {
