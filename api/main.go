@@ -124,8 +124,24 @@ func main() {
 			return
 		}
 
+		cActiveIps, err := countActiveIps(logger, *AllowedIPsFilePath, &user)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "server logs")
+			return
+		}
+
 		if isAlreadyAllowed {
-			c.String(http.StatusOK, "already added")
+			c.JSON(http.StatusOK,
+				gin.H{
+					"added":         true,
+					"already_added": true,
+					"message":       "ip already added",
+					"username":      user.Username.String,
+					"limitation":    user.Limitation,
+					"last_ip":       user.LastIp.String,
+					"active_ips":    cActiveIps,
+					"ip":            ip,
+				})
 			return
 		}
 
@@ -135,7 +151,17 @@ func main() {
 			return
 		}
 
-		c.String(http.StatusOK, "added")
+		c.JSON(http.StatusOK,
+			gin.H{
+				"added":         true,
+				"already_added": false,
+				"message":       "registered successfully",
+				"username":      user.Username.String,
+				"limitation":    user.Limitation,
+				"last_ip":       user.LastIp.String,
+				"active_ips":    cActiveIps + 1,
+				"ip":            ip,
+			})
 
 		return
 	})
@@ -425,6 +451,22 @@ func isIpRegistered(logger *slog.Logger, allowedIpFilePath string, ip string) (b
 		}
 	}
 	return false, nil
+}
+
+func countActiveIps(logger *slog.Logger, allowedIpFilePath string, user *User) (int, error) {
+	// TODO: read each line and check it here, dont load all file into memory!
+	allowedIpsFileLines, err := readLines(allowedIpFilePath)
+	if err != nil {
+		logger.Error("couldn't read allowed ips file!", "Details", err)
+		return 0, err
+	}
+	var count = 0
+	for _, line := range allowedIpsFileLines {
+		if strings.Contains(line, "("+user.Token+")") {
+			count += 1
+		}
+	}
+	return count, nil
 }
 
 func addIpToAllowedList(logger *slog.Logger, allowedIpFilePath string, ip string, user *User) error {
